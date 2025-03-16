@@ -3,6 +3,7 @@ package org.example.audioservice.exception.handler;
 import org.example.audioservice.exception.PhraseNotFoundException;
 import org.example.audioservice.exception.UserNotFoundException;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.InvalidDataAccessResourceUsageException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
@@ -66,6 +67,16 @@ public class GlobalExceptionHandler {
                 .build();
 
         return new ResponseEntity<>(response, HttpStatus.PAYLOAD_TOO_LARGE);
+    }
+
+    @ExceptionHandler(InvalidDataAccessResourceUsageException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidDataAccessResourceUsageExceptionException(InvalidDataAccessResourceUsageException ex) {
+        ErrorResponse response = ErrorResponse.builder()
+                .status("error")
+                .message("Invalid data access")
+                .build();
+
+        return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
