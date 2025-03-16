@@ -1,7 +1,7 @@
 services:
   mysql:
-    image: 'mysql:8.0'
-    container_name: mysql8
+    image: 'mysql:8.1'
+    container_name: mysql8_1
     environment:
       - 'MYSQL_DATABASE=audio_service_db'
       - 'MYSQL_PASSWORD=audio_pass'
