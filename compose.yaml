@@ -1,14 +1,16 @@
 services:
   mysql:
-    image: 'mysql:latest'
+    image: 'mysql:8.0'
+    container_name: mysql8
     environment:
-      - 'MYSQL_DATABASE=mydatabase'
-      - 'MYSQL_PASSWORD=secret'
-      - 'MYSQL_ROOT_PASSWORD=verysecret'
-      - 'MYSQL_USER=myuser'
+      - 'MYSQL_DATABASE=audio_service_db'
+      - 'MYSQL_PASSWORD=audio_pass'
+      - 'MYSQL_ROOT_PASSWORD=audio_root_pass'
+      - 'MYSQL_USER=audio_svc'
     ports:
       - '3306'
-  redis:
-    image: 'redis:latest'
-    ports:
-      - '6379'
+    volumes:
+      - 'mysql-data:/var/lib/mysql'
+
+volumes:
+  mysql-data:
