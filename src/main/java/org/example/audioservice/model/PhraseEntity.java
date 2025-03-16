@@ -2,11 +2,9 @@ package org.example.audioservice.model;
 
 import jakarta.persistence.*;
 
-import java.time.LocalDateTime;
-
 @Entity
-@Table(name = "phrases_tab")
-public class Phrase {
+@Table(name = "phrase_tab")
+public class PhraseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -16,5 +14,5 @@ public class Phrase {
     private String text;
 
     @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    private Long createdAt;
 }

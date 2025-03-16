@@ -1,11 +1,17 @@
 package org.example.audioservice.model;
 
 import jakarta.persistence.*;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "files_tab")
+@Getter
+@Setter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@Table(name = "file_tab")
 public class FileEntity {
 
     @Id
@@ -13,7 +19,10 @@ public class FileEntity {
     private Long id;
 
     @Column(nullable = false)
-    private String filename;
+    private String fileName;
+
+    @Column(nullable = false)
+    private String filePath;
 
     @Column(nullable = false)
     private String format;
@@ -25,5 +34,5 @@ public class FileEntity {
     private Long phraseId;
 
     @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    private Long createdAt;
 }
