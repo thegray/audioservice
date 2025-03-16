@@ -1,0 +1,40 @@
+services:
+  mysql:
+    image: 'mysql:8.0'
+    container_name: mysql8
+    environment:
+      - 'MYSQL_DATABASE=audio_service_db'
+      - 'MYSQL_PASSWORD=audio_pass'
+      - 'MYSQL_ROOT_PASSWORD=audio_root_pass'
+      - 'MYSQL_USER=audio_svc'
+    ports:
+      - '3306:3306'
+    networks:
+      - backend-network
+    volumes:
+      - 'mysql-data:/var/lib/mysql'
+
+  audioservice-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: audioservice-app
+    ports:
+      - "8080:8080"
+    environment:
+      - JAVA_OPTS=-Xms512m -Xmx1024m
+      - SPRING_PROFILES_ACTIVE=dev
+    networks:
+      - backend-network
+    volumes:
+      - 'uploads:/app/data/uploads'
+    depends_on:
+      - mysql
+
+volumes:
+  mysql-data:
+  uploads:
+
+networks:
+  backend-network:
+    driver: bridge
