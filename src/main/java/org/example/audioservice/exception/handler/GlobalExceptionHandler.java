@@ -1,0 +1,96 @@
+package org.example.audioservice.exception.handler;
+
+import org.example.audioservice.exception.PhraseNotFoundException;
+import org.example.audioservice.exception.UserNotFoundException;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.example.audioservice.payload.ErrorResponse;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+
+import java.util.List;
+
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+    @Value("${spring.servlet.multipart.max-file-size}")
+    private String maxFileSize;
+
+    @ExceptionHandler(UserNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleUserNotFoundException(UserNotFoundException ex) {
+        ErrorResponse response = ErrorResponse.builder()
+                .status("error")
+                .errors(List.of(
+                        ErrorResponse.ErrorDetail.builder()
+                                .field("user_id")
+                                .message(ex.getMessage())
+                                .build()
+                ))
+                .message("User not found")
+                .build();
+
+        return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler(PhraseNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handlePhraseNotFoundException(PhraseNotFoundException ex) {
+        ErrorResponse response = ErrorResponse.builder()
+                .status("error")
+                .errors(List.of(
+                        ErrorResponse.ErrorDetail.builder()
+                                .field("phrase_id")
+                                .message(ex.getMessage())
+                                .build()
+                ))
+                .message("Phrase not found")
+                .build();
+
+        return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ErrorResponse> handleMaxUploadSizeExceededException(MaxUploadSizeExceededException ex) {
+
+        ErrorResponse response = ErrorResponse.builder()
+                .status("error")
+                .errors(List.of(
+                        ErrorResponse.ErrorDetail.builder()
+                                .field("file")
+                                .message("File size exceeds the limit of " + maxFileSize)
+                                .build()
+                ))
+                .message("Maximum upload size exceeded")
+                .build();
+
+        return new ResponseEntity<>(response, HttpStatus.PAYLOAD_TOO_LARGE);
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleUnknownEndpointException(HttpRequestMethodNotSupportedException ex) {
+        ErrorResponse response = ErrorResponse.builder()
+                .status("error")
+                .message("Unknown method: "+ ex.getMessage())
+                .build();
+
+        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+    }
+
+    // for other unexpected errors
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponse> handleGenericException(Exception ex) {
+        ErrorResponse response = ErrorResponse.builder()
+                .status("error")
+                .errors(List.of(
+                        ErrorResponse.ErrorDetail.builder()
+                                .message(ex.getMessage())
+                                .build()
+                ))
+                .message("An unexpected error occurred")
+                .build();
+
+        return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+}
