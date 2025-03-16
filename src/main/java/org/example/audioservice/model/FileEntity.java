@@ -6,7 +6,7 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "files_tab")
-public class File {
+public class FileEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -17,9 +17,6 @@ public class File {
 
     @Column(nullable = false)
     private String format;
-
-    @Column(nullable = false)
-    private String status;
 
     @Column(name = "user_id")
     private Long userId;
