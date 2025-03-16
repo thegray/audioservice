@@ -5,6 +5,7 @@ import org.example.audioservice.exception.PhraseNotFoundException;
 import org.example.audioservice.exception.UserNotFoundException;
 import org.example.audioservice.payload.ApiResponse;
 import org.example.audioservice.payload.FileResponse;
+import org.example.audioservice.service.FileService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -16,7 +17,12 @@ import org.springframework.web.multipart.MultipartFile;
 @RequestMapping("/v1/audio")
 public class FileController {
 
+    private final FileService fileService;
     private static final Logger Log = LoggerFactory.getLogger(FileController.class);
+
+    public FileController(FileService fileService) {
+        this.fileService = fileService;
+    }
 
     @PostMapping("/user/{userId}/phrase/{phraseId}")
     public ResponseEntity<ApiResponse<FileResponse>> uploadAudioFile(
@@ -34,17 +40,16 @@ public class FileController {
             throw new PhraseNotFoundException(String.format("Phrase with id %d not found", phraseId));
         }
 
+        FileDTO fileDTO = fileService.saveAudioFile(file, userId, phraseId);
 
-//        FileDTO fileDTO = audioService.saveAudio(file, userId, phraseId);
-
-        //mock data
-        long id = System.currentTimeMillis();
-        String name = id + ".mp3";
-        FileDTO fileDTO = FileDTO.builder()
-                .fileId(id)
-                .fileName(name)
-                .filePath("/storage/audio/" + name)
-                .build();
+//        //mock data
+//        long id = System.currentTimeMillis();
+//        String name = id + ".mp3";
+//        FileDTO fileDTO = FileDTO.builder()
+//                .fileId(id)
+//                .fileName(name)
+//                .filePath("/storage/audio/" + name)
+//                .build();
 
         FileResponse fileResponse = FileResponse.from(fileDTO);
         ApiResponse<FileResponse> response = ApiResponse.<FileResponse>builder()
