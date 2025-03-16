@@ -1,8 +1,9 @@
 package org.example.audioservice.service;
 
-import org.example.audioservice.controller.FileController;
 import org.example.audioservice.dto.FileDTO;
 import org.example.audioservice.exception.StorageException;
+import org.example.audioservice.model.FileEntity;
+import org.example.audioservice.repository.FileRepository;
 import org.example.audioservice.util.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,12 +16,19 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
 @Service
 public class FileService {
     @Value("${file.upload-dir}")
     private String baseUploadDir;
+
+    private final FileRepository fileRepository;
+
+    public FileService(FileRepository fileRepository) {
+        this.fileRepository = fileRepository;
+    }
 
     private static final Logger Log = LoggerFactory.getLogger(FileService.class);
 
@@ -49,11 +57,21 @@ public class FileService {
             file.transferTo(filePath.toFile());
             Log.info("transferTo|filePath:{}", filePath.toString());
 
-            // Build DTO with metadata
-            return FileDTO.builder()
-                    .fileId(System.currentTimeMillis()) // Mock ID for now
+            FileEntity fileEntity = FileEntity.builder()
+                    .userId(userId)
+                    .phraseId(phraseId)
                     .fileName(fileName)
                     .filePath(filePath.toString())
+                    .format(file.getContentType())
+                    .createdAt(time)
+                    .build();
+
+            FileEntity savedFile = fileRepository.save(fileEntity);
+
+            return FileDTO.builder()
+                    .fileId(savedFile.getId()) // should use file_id
+                    .fileName(savedFile.getFileName())
+                    .filePath(savedFile.getFilePath())
                     .build();
 
         } catch (IOException e) {
