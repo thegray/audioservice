@@ -33,6 +33,9 @@ public class FileEntity {
     @Column(name = "phrase_id")
     private Long phraseId;
 
+    @Column(nullable = false, columnDefinition = "TINYINT(1)")
+    private boolean original;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Long createdAt;
 }
