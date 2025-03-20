@@ -40,7 +40,7 @@ public class FileUtils {
         return EXTENSION_TO_MIME_TYPE.getOrDefault(extension, null);
     }
 
-    public static void validateAudioFile(MultipartFile file) {
+    public static String validateAudioFile(MultipartFile file) {
         if (file.isEmpty()) {
             throw new StorageException("Uploaded File is empty");
         }
@@ -49,6 +49,7 @@ public class FileUtils {
         if (contentType == null || !MIME_TYPE_TO_EXTENSION.containsKey(contentType)) {
             throw new UnsupportedFileFormatException("Unsupported audio file format: " + contentType);
         }
+        return MIME_TYPE_TO_EXTENSION.get(contentType);
     }
 
     public static MediaType getAudioMediaType(String format) {
