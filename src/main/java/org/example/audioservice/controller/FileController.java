@@ -1,6 +1,7 @@
 package org.example.audioservice.controller;
 
 import org.example.audioservice.dto.FileDTO;
+import org.example.audioservice.dto.FileDownloadDTO;
 import org.example.audioservice.exception.PhraseNotFoundException;
 import org.example.audioservice.exception.UserNotFoundException;
 import org.example.audioservice.payload.ApiResponse;
@@ -37,14 +38,6 @@ public class FileController {
 
         Log.info("uploadAudioFile|userId:{},phraseId:{}", userId, phraseId);
 
-        if (userId == 999) { // test UserNotFoundException manually
-            throw new UserNotFoundException(String.format("User with id %d not found", userId));
-        }
-
-        if (phraseId == 999) { // test PhraseNotFoundException manually
-            throw new PhraseNotFoundException(String.format("Phrase with id %d not found", phraseId));
-        }
-
         FileDTO fileDTO = fileService.saveAudioFile(file, userId, phraseId);
 
         FileResponse fileResponse = FileResponse.from(fileDTO);
@@ -61,18 +54,17 @@ public class FileController {
     public ResponseEntity<byte[]> getAudioFile(@PathVariable Long userId, @PathVariable Long phraseId, @PathVariable String audioFormat) throws IOException {
         Log.info("getAudioFile|userId:{}, phraseId:{}, audioFormat:{}", userId, phraseId, audioFormat);
 
-        // Validate user and phrase, similar to upload, maybe can create function
-
-        byte[] fileData = fileService.getAudioFile(userId, phraseId, audioFormat);
+        FileDownloadDTO fileDownloadDTO = fileService.getAudioFile(userId, phraseId, audioFormat);
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(FileUtils.getAudioMediaType(audioFormat));
-        headers.setContentLength(fileData.length);
-        headers.setContentDispositionFormData("attachment", phraseId + "." + audioFormat);
+        headers.setContentLength(fileDownloadDTO.getFile().length);
+        headers.setContentDispositionFormData("attachment", fileDownloadDTO.getFileName());
 
-        Log.info("getAudioFile|fileDataSize:{}", fileData.length);
+        Log.info("getAudioFile|Serving file: {}", fileDownloadDTO.getFileName());
+        Log.info("getAudioFile|fileDataSize: {}", fileDownloadDTO.getFile().length);
 
-        return new ResponseEntity<>(fileData, headers, HttpStatus.OK);
+        return new ResponseEntity<>(fileDownloadDTO.getFile(), headers, HttpStatus.OK);
     }
 
 }
