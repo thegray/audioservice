@@ -3,6 +3,7 @@ package org.example.audioservice.service;
 import org.example.audioservice.dto.*;
 import org.example.audioservice.exception.PhraseNotFoundException;
 import org.example.audioservice.exception.StorageException;
+import org.example.audioservice.exception.UnsupportedFileFormatException;
 import org.example.audioservice.exception.UserNotFoundException;
 import org.example.audioservice.library.FFmpegWrapper;
 import org.example.audioservice.model.FileEntity;
@@ -76,7 +77,7 @@ public class FileService {
                     .fileName(file.getOriginalFilename())
                     .filePath(filePath.toString())
                     .format(audioFileExt)
-                    .original(true)
+                    .groupId(time)
                     .createdAt(time)
                     .build();
 
@@ -94,70 +95,94 @@ public class FileService {
     }
 
     public FileDownloadDTO getAudioFile(Long userId, Long phraseId, String format) {
-        Log.info("getAudioFile|userId={}, phraseId={}, format={}", userId, phraseId, format);
+        Log.info("get_audio_file|userId={}, phraseId={}, format={}", userId, phraseId, format);
 
-        // get possibly file with format
-        Optional<FileEntity> existingFile = fileRepository.findTopByUserIdAndPhraseIdAndFormatOrderByCreatedAtDesc(userId, phraseId, format);
+        // get latest file for the phrase
+        Optional<FileEntity> latestFile = fileRepository
+                .findTopByUserIdAndPhraseIdOrderByCreatedAtDesc(userId, phraseId);
 
-        if (existingFile.isPresent()) {
-            Path filePath = Paths.get(existingFile.get().getFilePath());
+        if (latestFile.isEmpty()) {
+            Log.info("get_audio_file|no available file, userId={}, phraseId={}", userId, phraseId);
+            throw new StorageException("No file available for userId=" + userId + ", phraseId=" + phraseId);
+        }
+
+        long groupId = latestFile.get().getGroupId();
+
+        FileEntity resultFileEntity = null;
+
+        if (latestFile.get().getFormat().equalsIgnoreCase(format)) {
+            Path filePath = Paths.get(latestFile.get().getFilePath());
+
             if (Files.exists(filePath)) {
-                Log.info("getAudioFile|Serving existing file at path={}", filePath);
-                return FileDownloadDTO.builder()
-                        .fileId(existingFile.get().getId())
-                        .fileName(existingFile.get().getFileName())
-                        .filePath(existingFile.get().getFilePath())
-                        .file(readFile(filePath))
-                        .build();
-            }
-        }
-
-        // if not found, try to get the original file
-        Optional<FileEntity> originalFile = fileRepository.findTopByUserIdAndPhraseIdAndOriginalOrderByCreatedAtDesc(userId, phraseId, true);
-
-        if (originalFile.isPresent()) {
-            String originalFileName = originalFile.get().getFileName();
-            Path originalFilePath = Paths.get(originalFile.get().getFilePath());
-            if (Files.exists(originalFilePath)) {
-                Log.info("getAudioFile|Original file found at path={}", originalFilePath);
-
-                // convert and save the file with the format
-                Path convertedFilePath = convertAudio(originalFilePath.toFile(), format);
-
-                Log.info("saveConvertedFile|Saving file={} at path={}", originalFileName, convertedFilePath);
-
-                FileEntity convertedEntity = FileEntity.builder()
-                        .userId(userId)
-                        .phraseId(phraseId)
-                        .fileName(originalFileName)
-                        .filePath(convertedFilePath.toString())
-                        .format(format)
-                        .createdAt(System.currentTimeMillis())
-                        .build();
-
-                fileRepository.save(convertedEntity);
-
-                return FileDownloadDTO.builder()
-                        .fileName(convertedEntity.getFileName())
-                        .filePath(convertedEntity.getFilePath())
-                        .file(readFile(convertedFilePath))
-                        .build();
+                resultFileEntity = latestFile.get();
             } else {
-                throw new StorageException("Original file not found at: " + originalFilePath);
+                throw new StorageException("File missing on disk: " + filePath.toString());
             }
         }
 
-        throw new StorageException("No file available for userId=" + userId + ", phraseId=" + phraseId);
+        if (resultFileEntity == null) {
+            Optional<FileEntity> existingFile = fileRepository
+                    .findTopByUserIdAndPhraseIdAndFormatAndGroupIdOrderByCreatedAtDesc(
+                            userId, phraseId, format.toLowerCase(), groupId);
+
+            if (existingFile.isPresent()) {
+                Path filePath = Paths.get(existingFile.get().getFilePath());
+
+                if (Files.exists(filePath)) {
+                    Log.info("get_audio_file|serving existing file at path={}", filePath);
+                    resultFileEntity = existingFile.get();
+                } else {
+                    // file is missing on storage
+                    Log.info("get_audio_file|missing existing file at path={}", filePath);
+                    throw new StorageException("Missing file: " + filePath.toString());
+                }
+            }
+
+            Log.info("get_audio_file|no existing file for group={}, format={}", groupId, format);
+
+            Optional<FileEntity> originalFile = fileRepository
+                    .findTopByUserIdAndPhraseIdAndGroupIdOrderByCreatedAtAsc(
+                            userId, phraseId, groupId);
+
+            if (originalFile.isEmpty()) {
+                throw new StorageException("No original file found for groupId=" + groupId);
+            }
+
+            // convert from the latest original file when file with format not exist
+            Path convertedFilePath = convertAudio(Paths.get(originalFile.get().getFilePath()).toFile(), format);
+
+            resultFileEntity = FileEntity.builder()
+                    .userId(userId)
+                    .phraseId(phraseId)
+                    .fileName(originalFile.get().getFileName()) // use the same filename
+                    .filePath(convertedFilePath.toString())
+                    .format(format)
+                    .groupId(groupId) // use the same groupId as original
+                    .createdAt(System.currentTimeMillis())
+                    .build();
+
+            fileRepository.save(resultFileEntity);
+        }
+
+        // return converted file to user
+        Path filePath = Paths.get(resultFileEntity.getFilePath());
+        return FileDownloadDTO.builder()
+                .fileId(resultFileEntity.getId())
+                .fileName(resultFileEntity.getFileName())
+                .filePath(resultFileEntity.getFilePath())
+                .file(readFile(filePath))
+                .build();
     }
 
     private Path convertAudio(File rawFile, String format) {
-        Log.info("convertAudio|Converting file to format={}", format);
+        Log.info("convert_audio_process|converting file to format={}", format);
 
         File convertedFile = ffmpegWrapper.convertAudio(rawFile, format);
         if (convertedFile != null) {
-            Log.info("convertAudio|Converted file saved at path={}", convertedFile.getAbsolutePath());
+            Log.info("convert_audio_process|converted file saved at path={}", convertedFile.getAbsolutePath());
             return convertedFile.toPath();
         } else {
+            Log.info("convert_audio_process|convert file attempt failed");
             throw new StorageException("Conversion failed for format: " + format);
         }
     }
