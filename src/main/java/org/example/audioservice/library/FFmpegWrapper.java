@@ -3,7 +3,7 @@ package org.example.audioservice.library;
 import com.github.kokorin.jaffree.ffmpeg.FFmpeg;
 import com.github.kokorin.jaffree.ffmpeg.UrlInput;
 import com.github.kokorin.jaffree.ffmpeg.UrlOutput;
-import org.example.audioservice.constants.AudioFormatConstants;
+import org.example.audioservice.constant.AudioFormatConstants;
 import org.example.audioservice.controller.FileController;
 import org.example.audioservice.exception.StorageException;
 import org.slf4j.Logger;
