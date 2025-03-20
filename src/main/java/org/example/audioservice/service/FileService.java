@@ -1,7 +1,9 @@
 package org.example.audioservice.service;
 
-import org.example.audioservice.dto.FileDTO;
+import org.example.audioservice.dto.*;
+import org.example.audioservice.exception.PhraseNotFoundException;
 import org.example.audioservice.exception.StorageException;
+import org.example.audioservice.exception.UserNotFoundException;
 import org.example.audioservice.library.FFmpegWrapper;
 import org.example.audioservice.model.FileEntity;
 import org.example.audioservice.repository.FileRepository;
@@ -37,7 +39,15 @@ public class FileService {
     private static final Logger Log = LoggerFactory.getLogger(FileService.class);
 
     public FileDTO saveAudioFile(MultipartFile file, Long userId, Long phraseId) {
-        FileUtils.validateAudioFile(file);
+        if (userId == 999) { // test UserNotFoundException manually
+            throw new UserNotFoundException(String.format("User with id %d not found", userId));
+        }
+
+        if (phraseId == 999) { // test PhraseNotFoundException manually
+            throw new PhraseNotFoundException(String.format("Phrase with id %d not found", phraseId));
+        }
+
+        String audioFileExt = FileUtils.validateAudioFile(file);
 
         try {
             // Create date-based directory
@@ -53,9 +63,8 @@ public class FileService {
 
             // Generate a unique file name based on user, phrase ID, and time
             Long time = System.currentTimeMillis();
-            String fileName = String.format("%d_%d_%d_%s", userId, phraseId, time, file.getOriginalFilename());
-//            String fileName = userId + "_" + phraseId + "_" + file.getOriginalFilename();
-            Path filePath = uploadPath.resolve(fileName);
+            String storedFileName = String.format("%d_%d_%d_%s", userId, phraseId, time, file.getOriginalFilename());
+            Path filePath = uploadPath.resolve(storedFileName);
 
             // Save file to disk
             file.transferTo(filePath.toFile());
@@ -64,9 +73,10 @@ public class FileService {
             FileEntity fileEntity = FileEntity.builder()
                     .userId(userId)
                     .phraseId(phraseId)
-                    .fileName(fileName)
+                    .fileName(file.getOriginalFilename())
                     .filePath(filePath.toString())
-                    .format(file.getContentType())
+                    .format(audioFileExt)
+                    .original(true)
                     .createdAt(time)
                     .build();
 
@@ -83,33 +93,55 @@ public class FileService {
         }
     }
 
-    public byte[] getAudioFile(Long userId, Long phraseId, String format) {
+    public FileDownloadDTO getAudioFile(Long userId, Long phraseId, String format) {
         Log.info("getAudioFile|userId={}, phraseId={}, format={}", userId, phraseId, format);
 
-        // ✅ Step 1: Try to get existing converted file
-        Optional<FileEntity> existingFile = fileRepository.findByUserIdAndPhraseIdAndFormat(userId, phraseId, format);
+        // get possibly file with format
+        Optional<FileEntity> existingFile = fileRepository.findTopByUserIdAndPhraseIdAndFormatOrderByCreatedAtDesc(userId, phraseId, format);
 
         if (existingFile.isPresent()) {
             Path filePath = Paths.get(existingFile.get().getFilePath());
             if (Files.exists(filePath)) {
                 Log.info("getAudioFile|Serving existing file at path={}", filePath);
-                return readFile(filePath);
+                return FileDownloadDTO.builder()
+                        .fileId(existingFile.get().getId())
+                        .fileName(existingFile.get().getFileName())
+                        .filePath(existingFile.get().getFilePath())
+                        .file(readFile(filePath))
+                        .build();
             }
         }
 
-        // ✅ Step 2: If not found, try to get the original file
-        Optional<FileEntity> originalFile = fileRepository.findByUserIdAndPhraseIdAndOriginal(userId, phraseId, true);
+        // if not found, try to get the original file
+        Optional<FileEntity> originalFile = fileRepository.findTopByUserIdAndPhraseIdAndOriginalOrderByCreatedAtDesc(userId, phraseId, true);
 
         if (originalFile.isPresent()) {
+            String originalFileName = originalFile.get().getFileName();
             Path originalFilePath = Paths.get(originalFile.get().getFilePath());
             if (Files.exists(originalFilePath)) {
                 Log.info("getAudioFile|Original file found at path={}", originalFilePath);
 
-                // ✅ Step 3: Convert and save the new format
+                // convert and save the file with the format
                 Path convertedFilePath = convertAudio(originalFilePath.toFile(), format);
-                saveConvertedFile(userId, phraseId, format, convertedFilePath);
 
-                return readFile(convertedFilePath);
+                Log.info("saveConvertedFile|Saving file={} at path={}", originalFileName, convertedFilePath);
+
+                FileEntity convertedEntity = FileEntity.builder()
+                        .userId(userId)
+                        .phraseId(phraseId)
+                        .fileName(originalFileName)
+                        .filePath(convertedFilePath.toString())
+                        .format(format)
+                        .createdAt(System.currentTimeMillis())
+                        .build();
+
+                fileRepository.save(convertedEntity);
+
+                return FileDownloadDTO.builder()
+                        .fileName(convertedEntity.getFileName())
+                        .filePath(convertedEntity.getFilePath())
+                        .file(readFile(convertedFilePath))
+                        .build();
             } else {
                 throw new StorageException("Original file not found at: " + originalFilePath);
             }
@@ -128,22 +160,6 @@ public class FileService {
         } else {
             throw new StorageException("Conversion failed for format: " + format);
         }
-    }
-
-    // TODO delete this, no need to create a separate file to save converted file
-    private void saveConvertedFile(Long userId, Long phraseId, String format, Path filePath) {
-        Log.info("saveConvertedFile|Saving file at path={}", filePath);
-
-        FileEntity convertedEntity = FileEntity.builder()
-                .userId(userId)
-                .phraseId(phraseId)
-                .fileName(filePath.getFileName().toString())
-                .filePath(filePath.toString())
-                .format(format)
-                .createdAt(System.currentTimeMillis())
-                .build();
-
-        fileRepository.save(convertedEntity);
     }
 
     private byte[] readFile(Path filePath) {
