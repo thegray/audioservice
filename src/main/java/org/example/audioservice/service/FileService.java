@@ -97,6 +97,12 @@ public class FileService {
     public FileDownloadDTO getAudioFile(Long userId, Long phraseId, String format) {
         Log.info("get_audio_file|userId={}, phraseId={}, format={}", userId, phraseId, format);
 
+        // file format validation
+        if (FileUtils.getMimeTypeFromExtension(format.toLowerCase()) == null) {
+            Log.info("get_audio_file|format not supported={}", format);
+            throw new UnsupportedFileFormatException("Unsupported format: " + format);
+        }
+
         // get latest file for the phrase
         Optional<FileEntity> latestFile = fileRepository
                 .findTopByUserIdAndPhraseIdOrderByCreatedAtDesc(userId, phraseId);
