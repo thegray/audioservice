@@ -3,6 +3,7 @@ package org.example.audioservice.controller;
 import org.example.audioservice.dto.FileDTO;
 import org.example.audioservice.dto.FileDownloadDTO;
 import org.example.audioservice.exception.PhraseNotFoundException;
+import org.example.audioservice.exception.StorageException;
 import org.example.audioservice.exception.UserNotFoundException;
 import org.example.audioservice.payload.ApiResponse;
 import org.example.audioservice.payload.FileResponse;
@@ -39,6 +40,9 @@ public class FileController {
         Log.info("upload_audio_handler|userId={}, phraseId={}", userId, phraseId);
 
         FileDTO fileDTO = fileService.saveAudioFile(file, userId, phraseId);
+        if (fileDTO == null) {
+            throw new StorageException("Failed to save file");
+        }
 
         FileResponse fileResponse = FileResponse.from(fileDTO);
         ApiResponse<FileResponse> response = ApiResponse.<FileResponse>builder()
