@@ -33,6 +33,9 @@ public class FileEntity {
     @Column(name = "phrase_id")
     private Long phraseId;
 
+    @Column(name = "group_id", nullable = false)
+    private Long groupId;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Long createdAt;
 }

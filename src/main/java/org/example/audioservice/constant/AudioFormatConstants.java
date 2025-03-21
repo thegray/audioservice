@@ -1,4 +1,4 @@
-package org.example.audioservice.constants;
+package org.example.audioservice.constant;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

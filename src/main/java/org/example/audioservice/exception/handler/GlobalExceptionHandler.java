@@ -1,7 +1,6 @@
 package org.example.audioservice.exception.handler;
 
-import org.example.audioservice.exception.PhraseNotFoundException;
-import org.example.audioservice.exception.UserNotFoundException;
+import org.example.audioservice.exception.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.InvalidDataAccessResourceUsageException;
 import org.springframework.http.HttpStatus;
@@ -47,6 +46,49 @@ public class GlobalExceptionHandler {
                                 .build()
                 ))
                 .message("Phrase not found")
+                .build();
+
+        return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleResourceNotFoundException(ResourceNotFoundException ex) {
+        ErrorResponse response = ErrorResponse.builder()
+                .status("error")
+                .errors(List.of(
+                        ErrorResponse.ErrorDetail.builder()
+                                .message(ex.getMessage())
+                                .build()
+                ))
+                .build();
+
+        return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler(StorageException.class)
+    public ResponseEntity<ErrorResponse> handleStorageException(StorageException ex) {
+        ErrorResponse response = ErrorResponse.builder()
+                .status("error")
+                .errors(List.of(
+                        ErrorResponse.ErrorDetail.builder()
+                                .message(ex.getMessage())
+                                .build()
+                ))
+                .build();
+
+        return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+    }
+
+
+    @ExceptionHandler(UnsupportedFileFormatException.class)
+    public ResponseEntity<ErrorResponse> handleUnsupportedFileFormatException(UnsupportedFileFormatException ex) {
+        ErrorResponse response = ErrorResponse.builder()
+                .status("error")
+                .errors(List.of(
+                        ErrorResponse.ErrorDetail.builder()
+                                .message(ex.getMessage())
+                                .build()
+                ))
                 .build();
 
         return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
