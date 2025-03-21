@@ -120,6 +120,10 @@ Before starting, make sure you have the following installed on your system:
 ##### 3. Run the Application Using Docker
 
 `docker-compose up --build`
+This will:
+- start a MySQL8.1 container with a new database.
+- start the Spring Boot application and connect it to MySQL.  
+Make sure port 3306 and 8080 still vacant before running this docker.
 
 ##### 4. Verify the Application
 
@@ -130,8 +134,8 @@ Should get response `{"status": "up"}`
 ##### 5. Example API Calls  
 
 Upload Audio File:
-`curl -F "file=@/path/to/audiofile.mp3" http://localhost:8080/api/audio/upload?userId=123&phraseId=456`  
+`curl -F "file=@/path/to/audiofile.mp3" http://localhost:8080/v1/audio/upload?userId=123&phraseId=456`  
 Need to specify path to your valid audio file.
 Download Audio File:
-`curl -X GET http://localhost:8080/api/audio/download?userId=123&phraseId=456&format=mp3 -o downloaded.mp3`
+`curl -X GET http://localhost:8080/v1/audio/download?userId=123&phraseId=456&format=mp3 -o downloaded.mp3`
 
