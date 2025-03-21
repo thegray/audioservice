@@ -112,7 +112,7 @@ public class FileService {
             throw new UnsupportedFileFormatException("Unsupported format: " + format);
         }
 
-        // get latest file for the phrase
+        // get latest available file for the given user and phrase
         Optional<FileEntity> latestFile = fileRepository
                 .findTopByUserIdAndPhraseIdOrderByCreatedAtDesc(userId, phraseId);
 
@@ -122,9 +122,9 @@ public class FileService {
         }
 
         long groupId = latestFile.get().getGroupId();
-
         FileEntity resultFileEntity = null;
 
+        // check if the latest file already matches the requested format
         if (latestFile.get().getFormat().equalsIgnoreCase(format)) {
             Path filePath = Paths.get(latestFile.get().getFilePath());
 
@@ -137,7 +137,9 @@ public class FileService {
             }
         }
 
+        // if the latest file is not available in the requested format
         if (resultFileEntity == null) {
+            // try to find an existing file in the requested format within the same group
             Optional<FileEntity> existingFile = fileRepository
                     .findTopByUserIdAndPhraseIdAndFormatAndGroupIdOrderByCreatedAtDesc(
                             userId, phraseId, format.toLowerCase(), groupId);
@@ -153,39 +155,40 @@ public class FileService {
                     Log.info("get_audio_file|fail|missing file at path={}", filePath);
                     throw new StorageException("Missing file: " + filePath.toString());
                 }
+            } else {
+                Log.info("get_audio_file|no existing file for group={}, format={}", groupId, format);
+
+                // find the original file, latest file created for this user, phrase and group
+                Optional<FileEntity> originalFile = fileRepository
+                        .findTopByUserIdAndPhraseIdAndGroupIdOrderByCreatedAtAsc(
+                                userId, phraseId, groupId);
+
+                if (originalFile.isEmpty()) {
+                    Log.info("get_audio_file|fail|no original file for userId={}, phraseId={}, group={}", userId, phraseId, groupId);
+                    throw new ResourceNotFoundException("No original file available for userId: " + userId + ", phraseId: " + phraseId);
+                }
+
+                // convert from the latest original file when file with format not exist
+                Path convertedFilePath = convertAudioProcess(originalFile.get().getId(), Paths.get(originalFile.get().getFilePath()).toFile(), format);
+                Log.info("get_audio_file|success|converted file id={} userId={}, phraseId={}, group={}",
+                        originalFile.get().getId(), userId, phraseId, groupId
+                );
+                resultFileEntity = FileEntity.builder()
+                        .userId(userId)
+                        .phraseId(phraseId)
+                        .fileName(originalFile.get().getFileName()) // use the same filename
+                        .filePath(convertedFilePath.toString())
+                        .format(format)
+                        .groupId(groupId) // use the same groupId as original
+                        .createdAt(System.currentTimeMillis())
+                        .build();
+
+                Log.info("get_audio_file|save converted file to db id={} userId={}, phraseId={}, group={}",
+                        originalFile.get().getId(), userId, phraseId, groupId
+                );
+                fileRepository.save(resultFileEntity);
             }
-
-            Log.info("get_audio_file|no existing file for group={}, format={}", groupId, format);
-
-            Optional<FileEntity> originalFile = fileRepository
-                    .findTopByUserIdAndPhraseIdAndGroupIdOrderByCreatedAtAsc(
-                            userId, phraseId, groupId);
-
-            if (originalFile.isEmpty()) {
-                Log.info("get_audio_file|fail|no original file for userId={}, phraseId={}, group={}", userId, phraseId, groupId);
-                throw new ResourceNotFoundException("No original file available for userId: " + userId + ", phraseId: " + phraseId);
-            }
-
-            // convert from the latest original file when file with format not exist
-            Path convertedFilePath = convertAudioProcess(originalFile.get().getId(), Paths.get(originalFile.get().getFilePath()).toFile(), format);
-            Log.info("get_audio_file|success|converted file id={} userId={}, phraseId={}, group={}",
-                    originalFile.get().getId(), userId, phraseId, groupId
-            );
-            resultFileEntity = FileEntity.builder()
-                    .userId(userId)
-                    .phraseId(phraseId)
-                    .fileName(originalFile.get().getFileName()) // use the same filename
-                    .filePath(convertedFilePath.toString())
-                    .format(format)
-                    .groupId(groupId) // use the same groupId as original
-                    .createdAt(System.currentTimeMillis())
-                    .build();
-
-            Log.info("get_audio_file|save converted file to db id={} userId={}, phraseId={}, group={}",
-                    originalFile.get().getId(), userId, phraseId, groupId
-            );
-            fileRepository.save(resultFileEntity);
-        }
+    }
 
         Log.info("get_audio_file|end|respond with file={}, path={} for userId={}, phraseId={}, format={}",
                 resultFileEntity.getFilePath(), resultFileEntity.getFileName(),
