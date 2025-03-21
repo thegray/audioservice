@@ -238,9 +238,9 @@ public class FileService {
         if (file != null && file.exists()) {
             try {
                 Files.delete(file.toPath());
-                Log.warn("cleanupFile|deleted partial file id={} at path={}", id, file.getAbsolutePath());
+                Log.warn("cleanup_file|deleted partial file id={} at path={}", id, file.getAbsolutePath());
             } catch (IOException deleteEx) {
-                Log.error("cleanupFile|failed to delete partial file id={}, error={}", id, deleteEx.getMessage());
+                Log.error("cleanup_file|failed to delete partial file id={}, error={}", id, deleteEx.getMessage());
             }
         }
     }
