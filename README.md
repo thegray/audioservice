@@ -89,20 +89,49 @@ The download process includes a complex decision-making flow to handle format co
 ### Next Steps and Future Improvements
 
 - Idempotent File Uploads: Implement logic to prevent duplicate file uploads and storage, can use file checksum,
+- Code Security: Migrate all credentials in code to a more secure platform, like KMS,
 - Enhanced Logging: Add trace IDs and measure processing times for better monitoring,
 - Caching: Introduce a caching layer to reduce load on the file system and improve response times,
 - Authorization and Authentication: Implement validation to ensure that only authorized users can upload, download, and access audio files, preventing unauthorized access and protecting user data,
 - Rate limit: Add rate limiting to prevent system overload, abuse, and ensure fair resource allocation among users,
 - Scalability: Transition to a distributed storage solution; adopting microservices, separate services for upload download, and conversion.
 
+### Project Setup
 
+#### Requirements
 
-Run service:
-make up
-make dev
-make test
+Before starting, make sure you have the following installed on your system:
+- java 21
+- maven
+- docker
+- docker compose
 
-Alternatives:
-docker compose up --build
-docker compose -f docker-compose.dev.yml up --build
-docker compose -f docker-compose.test.yml up --build
+#### Setup Instructions
+
+##### 1. Clone the Repository
+
+`git clone https://github.com/thegray/audioservice`  
+`cd audioservice`
+
+##### 2. Build the jar
+
+`mvn package -DskipTests`
+
+##### 3. Run the Application Using Docker
+
+`docker-compose up --build`
+
+##### 4. Verify the Application
+
+Once docker compose finishes, can proceed to verify service  
+`curl --location 'http://localhost:8080/healthcheck'`  
+Should get response `{"status": "up"}`
+
+##### 5. Example API Calls  
+
+Upload Audio File:
+`curl -F "file=@/path/to/audiofile.mp3" http://localhost:8080/api/audio/upload?userId=123&phraseId=456`  
+Need to specify path to your valid audio file.
+Download Audio File:
+`curl -X GET http://localhost:8080/api/audio/download?userId=123&phraseId=456&format=mp3 -o downloaded.mp3`
+
