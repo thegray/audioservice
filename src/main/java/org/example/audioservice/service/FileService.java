@@ -97,7 +97,7 @@ public class FileService {
             } else {
                 Log.error("save_audio_file|fail|file path was not generated. error={}", e.getMessage());
             }
-            throw new StorageException("Failed to store file: " + e.getMessage(), e);
+            throw new StorageException("Failed to store file: " + e.getMessage());
         }
     }
 
