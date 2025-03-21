@@ -11,7 +11,11 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name = "file_tab")
+@Table(name = "file_tab", indexes = {
+        @Index(name = "idx_user_phrase_created_at", columnList = "user_id, phrase_id, created_at DESC"),
+        @Index(name = "idx_user_phrase_format_group", columnList = "user_id, phrase_id, format, group_id"),
+        @Index(name = "idx_user_phrase_group", columnList = "user_id, phrase_id, group_id")
+})
 public class FileEntity {
 
     @Id
