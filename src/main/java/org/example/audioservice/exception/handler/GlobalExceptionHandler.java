@@ -32,7 +32,7 @@ public class GlobalExceptionHandler {
                 .message("User not found")
                 .build();
 
-        return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+        return new ResponseEntity<>(response, ex.getStatus());
     }
 
     @ExceptionHandler(PhraseNotFoundException.class)
@@ -48,7 +48,7 @@ public class GlobalExceptionHandler {
                 .message("Phrase not found")
                 .build();
 
-        return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+        return new ResponseEntity<>(response, ex.getStatus());
     }
 
     @ExceptionHandler(ResourceNotFoundException.class)
@@ -62,7 +62,7 @@ public class GlobalExceptionHandler {
                 ))
                 .build();
 
-        return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+        return new ResponseEntity<>(response, ex.getStatus());
     }
 
     @ExceptionHandler(StorageException.class)
@@ -76,7 +76,7 @@ public class GlobalExceptionHandler {
                 ))
                 .build();
 
-        return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+        return new ResponseEntity<>(response, ex.getStatus());
     }
 
 
@@ -91,7 +91,7 @@ public class GlobalExceptionHandler {
                 ))
                 .build();
 
-        return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+        return new ResponseEntity<>(response, ex.getStatus());
     }
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)
@@ -108,7 +108,7 @@ public class GlobalExceptionHandler {
                 .message("Maximum upload size exceeded")
                 .build();
 
-        return new ResponseEntity<>(response, HttpStatus.PAYLOAD_TOO_LARGE);
+        return new ResponseEntity<>(response, ex.getStatusCode());
     }
 
     @ExceptionHandler(InvalidDataAccessResourceUsageException.class)
