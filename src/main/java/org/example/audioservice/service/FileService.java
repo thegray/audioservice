@@ -116,7 +116,7 @@ public class FileService {
 
         if (latestFile.isEmpty()) {
             Log.info("get_audio_file|fail|no available file, userId={}, phraseId={}", userId, phraseId);
-            throw new ResourceNotFoundException("No file available for userId: " + userId + ", phraseId: " + phraseId);
+            throw new ResourceNotFoundException("No file available for userId: " + userId + ", phraseId: " + phraseId + ", format: " + format);
         }
 
         long groupId = latestFile.get().getGroupId();
