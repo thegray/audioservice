@@ -1,10 +1,7 @@
 package org.example.audioservice.service;
 
 import org.example.audioservice.dto.*;
-import org.example.audioservice.exception.PhraseNotFoundException;
-import org.example.audioservice.exception.StorageException;
-import org.example.audioservice.exception.UnsupportedFileFormatException;
-import org.example.audioservice.exception.UserNotFoundException;
+import org.example.audioservice.exception.*;
 import org.example.audioservice.library.FFmpegWrapper;
 import org.example.audioservice.model.FileEntity;
 import org.example.audioservice.repository.FileRepository;
@@ -40,36 +37,40 @@ public class FileService {
     private static final Logger Log = LoggerFactory.getLogger(FileService.class);
 
     public FileDTO saveAudioFile(MultipartFile file, Long userId, Long phraseId) {
+        Log.info("save_audio_file|start|userId={}, phraseId={}", userId, phraseId);
+
+        // only mock
         if (userId == 999) { // test UserNotFoundException manually
+            Log.info("save_audio_file|fail|no userId={}", userId);
             throw new UserNotFoundException(String.format("User with id %d not found", userId));
         }
 
         if (phraseId == 999) { // test PhraseNotFoundException manually
+            Log.info("save_audio_file|fail|no phraseId={}", phraseId);
             throw new PhraseNotFoundException(String.format("Phrase with id %d not found", phraseId));
         }
 
         String audioFileExt = FileUtils.validateAudioFile(file);
 
+        Path filePath = null;
+
         try {
             // Create date-based directory
             String dateFolder = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
             Path uploadPath = Paths.get(baseUploadDir, dateFolder);
-            Log.info("settings|uploadPath:{}", uploadPath);
 
-            // Ensure the upload directory exists
             if (!Files.exists(uploadPath)) {
                 Files.createDirectories(uploadPath);
-                Log.info("createDirectories|uploadPath:{}", uploadPath);
             }
 
             // Generate a unique file name based on user, phrase ID, and time
             Long time = System.currentTimeMillis();
             String storedFileName = String.format("%d_%d_%d_%s", userId, phraseId, time, file.getOriginalFilename());
-            Path filePath = uploadPath.resolve(storedFileName);
+            filePath = uploadPath.resolve(storedFileName);
 
             // Save file to disk
             file.transferTo(filePath.toFile());
-            Log.info("transferTo|filePath:{}", filePath.toString());
+            Log.info("save_audio_file|success|stored file at path={}", filePath.toString());
 
             FileEntity fileEntity = FileEntity.builder()
                     .userId(userId)
@@ -83,6 +84,7 @@ public class FileService {
 
             FileEntity savedFile = fileRepository.save(fileEntity);
 
+            Log.info("save_audio_file|end|file saved to db path={}", filePath.toString());
             return FileDTO.builder()
                     .fileId(savedFile.getId()) // should use file_id
                     .fileName(savedFile.getFileName())
@@ -90,16 +92,21 @@ public class FileService {
                     .build();
 
         } catch (IOException e) {
-            throw new StorageException("Failed to store file: " + e.getMessage());
+            if (filePath != null) {
+                Log.error("save_audio_file|fail|failed to store file={} error={}", filePath.toString(), e.getMessage());
+            } else {
+                Log.error("save_audio_file|fail|file path was not generated. error={}", e.getMessage());
+            }
+            throw new StorageException("Failed to store file: " + e.getMessage(), e);
         }
     }
 
     public FileDownloadDTO getAudioFile(Long userId, Long phraseId, String format) {
-        Log.info("get_audio_file|userId={}, phraseId={}, format={}", userId, phraseId, format);
+        Log.info("get_audio_file|start|userId={}, phraseId={}, format={}", userId, phraseId, format);
 
         // file format validation
         if (FileUtils.getMimeTypeFromExtension(format.toLowerCase()) == null) {
-            Log.info("get_audio_file|format not supported={}", format);
+            Log.info("get_audio_file|fail|format not supported={}", format);
             throw new UnsupportedFileFormatException("Unsupported format: " + format);
         }
 
@@ -108,8 +115,8 @@ public class FileService {
                 .findTopByUserIdAndPhraseIdOrderByCreatedAtDesc(userId, phraseId);
 
         if (latestFile.isEmpty()) {
-            Log.info("get_audio_file|no available file, userId={}, phraseId={}", userId, phraseId);
-            throw new StorageException("No file available for userId=" + userId + ", phraseId=" + phraseId);
+            Log.info("get_audio_file|fail|no available file, userId={}, phraseId={}", userId, phraseId);
+            throw new ResourceNotFoundException("No file available for userId: " + userId + ", phraseId: " + phraseId);
         }
 
         long groupId = latestFile.get().getGroupId();
@@ -120,8 +127,10 @@ public class FileService {
             Path filePath = Paths.get(latestFile.get().getFilePath());
 
             if (Files.exists(filePath)) {
+                Log.info("get_audio_file|success|serving latest file at path={}", filePath);
                 resultFileEntity = latestFile.get();
             } else {
+                Log.info("get_audio_file|fail|missing file at path={}", filePath);
                 throw new StorageException("File missing on disk: " + filePath.toString());
             }
         }
@@ -135,11 +144,11 @@ public class FileService {
                 Path filePath = Paths.get(existingFile.get().getFilePath());
 
                 if (Files.exists(filePath)) {
-                    Log.info("get_audio_file|serving existing file at path={}", filePath);
+                    Log.info("get_audio_file|success|serving existing file at path={}", filePath);
                     resultFileEntity = existingFile.get();
                 } else {
                     // file is missing on storage
-                    Log.info("get_audio_file|missing existing file at path={}", filePath);
+                    Log.info("get_audio_file|fail|missing file at path={}", filePath);
                     throw new StorageException("Missing file: " + filePath.toString());
                 }
             }
@@ -151,12 +160,15 @@ public class FileService {
                             userId, phraseId, groupId);
 
             if (originalFile.isEmpty()) {
-                throw new StorageException("No original file found for groupId=" + groupId);
+                Log.info("get_audio_file|fail|no original file for userId={}, phraseId={}, group={}", userId, phraseId, groupId);
+                throw new ResourceNotFoundException("No original file available for userId: " + userId + ", phraseId: " + phraseId);
             }
 
             // convert from the latest original file when file with format not exist
-            Path convertedFilePath = convertAudio(Paths.get(originalFile.get().getFilePath()).toFile(), format);
-
+            Path convertedFilePath = convertAudioProcess(originalFile.get().getId(), Paths.get(originalFile.get().getFilePath()).toFile(), format);
+            Log.info("get_audio_file|success|converted file id={} userId={}, phraseId={}, group={}",
+                    originalFile.get().getId(), userId, phraseId, groupId
+            );
             resultFileEntity = FileEntity.builder()
                     .userId(userId)
                     .phraseId(phraseId)
@@ -167,9 +179,16 @@ public class FileService {
                     .createdAt(System.currentTimeMillis())
                     .build();
 
+            Log.info("get_audio_file|save converted file to db id={} userId={}, phraseId={}, group={}",
+                    originalFile.get().getId(), userId, phraseId, groupId
+            );
             fileRepository.save(resultFileEntity);
         }
 
+        Log.info("get_audio_file|end|respond with file={}, path={} for userId={}, phraseId={}, format={}",
+                resultFileEntity.getFilePath(), resultFileEntity.getFileName(),
+                userId, phraseId, format
+        );
         // return converted file to user
         Path filePath = Paths.get(resultFileEntity.getFilePath());
         return FileDownloadDTO.builder()
@@ -180,16 +199,29 @@ public class FileService {
                 .build();
     }
 
-    private Path convertAudio(File rawFile, String format) {
-        Log.info("convert_audio_process|converting file to format={}", format);
+    private Path convertAudioProcess(Long id, File rawFile, String format) {
+        Log.info("convert_audio_process|start|fileId={}, format={}", id, format);
 
-        File convertedFile = ffmpegWrapper.convertAudio(rawFile, format);
-        if (convertedFile != null) {
-            Log.info("convert_audio_process|converted file saved at path={}", convertedFile.getAbsolutePath());
+        File convertedFile = null;
+        try {
+            convertedFile = ffmpegWrapper.convertAudio(rawFile, format);
+
+            if (convertedFile == null || !convertedFile.exists()) {
+                throw new StorageException("File conversion failed, file id: " + id);
+            }
+
+            Log.info("convert_audio_process|success|converted file id={} saved at path={}", id, convertedFile.getAbsolutePath());
+
             return convertedFile.toPath();
-        } else {
-            Log.info("convert_audio_process|convert file attempt failed");
-            throw new StorageException("Conversion failed for format: " + format);
+
+        } catch (Exception e) {
+            Log.error("convert_audio_process|fail|file conversion failed id={}, format={}, error={}", id, format, e.getMessage(), e);
+
+            // cleanup if file partially created
+            if (convertedFile != null && convertedFile.exists()) {
+                cleanupFile(convertedFile, id);
+            }
+            throw new StorageException("Audio conversion failed for format: " + format + ", error" + e.getMessage());
         }
     }
 
@@ -197,8 +229,20 @@ public class FileService {
         try {
             return Files.readAllBytes(filePath);
         } catch (Exception e) {
-            Log.error("readFile|Failed to read file: {}", filePath, e);
+            Log.error("read_file|failed to read file: {}", filePath, e);
             throw new StorageException("Failed to read file: " + e.getMessage());
         }
     }
+
+    private void cleanupFile(File file, Long id) {
+        if (file != null && file.exists()) {
+            try {
+                Files.delete(file.toPath());
+                Log.warn("cleanupFile|deleted partial file id={} at path={}", id, file.getAbsolutePath());
+            } catch (IOException deleteEx) {
+                Log.error("cleanupFile|failed to delete partial file id={}, error={}", id, deleteEx.getMessage());
+            }
+        }
+    }
+
 }
