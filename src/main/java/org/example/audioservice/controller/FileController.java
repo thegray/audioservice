@@ -36,7 +36,7 @@ public class FileController {
             @PathVariable Long phraseId,
             @RequestParam("file") MultipartFile file) {
 
-        Log.info("uploadAudioFile|userId:{},phraseId:{}", userId, phraseId);
+        Log.info("upload_audio_handler|userId={}, phraseId={}", userId, phraseId);
 
         FileDTO fileDTO = fileService.saveAudioFile(file, userId, phraseId);
 
@@ -47,12 +47,14 @@ public class FileController {
                 .message("Audio uploaded successfully")
                 .build();
 
+        Log.info("upload_audio_handler|save audio success={}, phraseId={}", userId, phraseId);
+
         return ResponseEntity.ok(response);
     }
 
     @GetMapping("/user/{userId}/phrase/{phraseId}/{audioFormat}")
     public ResponseEntity<byte[]> getAudioFile(@PathVariable Long userId, @PathVariable Long phraseId, @PathVariable String audioFormat) throws IOException {
-        Log.info("getAudioFile|userId:{}, phraseId:{}, audioFormat:{}", userId, phraseId, audioFormat);
+        Log.info("get_audio_handler|userId={}, phraseId={}, audioFormat={}", userId, phraseId, audioFormat);
 
         FileDownloadDTO fileDownloadDTO = fileService.getAudioFile(userId, phraseId, audioFormat);
 
@@ -61,8 +63,7 @@ public class FileController {
         headers.setContentLength(fileDownloadDTO.getFile().length);
         headers.setContentDispositionFormData("attachment", fileDownloadDTO.getFileName());
 
-        Log.info("getAudioFile|Serving file: {}", fileDownloadDTO.getFileName());
-        Log.info("getAudioFile|fileDataSize: {}", fileDownloadDTO.getFile().length);
+        Log.info("get_audio_handler|serving file={} size={}", fileDownloadDTO.getFileName(), fileDownloadDTO.getFile().length);
 
         return new ResponseEntity<>(fileDownloadDTO.getFile(), headers, HttpStatus.OK);
     }
