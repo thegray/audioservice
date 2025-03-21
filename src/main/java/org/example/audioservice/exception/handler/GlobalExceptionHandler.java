@@ -55,6 +55,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleResourceNotFoundException(ResourceNotFoundException ex) {
         ErrorResponse response = ErrorResponse.builder()
                 .status("error")
+                .message(ex.getMessage())
                 .errors(List.of(
                         ErrorResponse.ErrorDetail.builder()
                                 .message(ex.getMessage())
@@ -126,6 +127,16 @@ public class GlobalExceptionHandler {
         ErrorResponse response = ErrorResponse.builder()
                 .status("error")
                 .message("Unknown method: "+ ex.getMessage())
+                .build();
+
+        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalArgumentException(IllegalArgumentException ex) {
+        ErrorResponse response = ErrorResponse.builder()
+                .status("error")
+                .message(ex.getMessage())
                 .build();
 
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
