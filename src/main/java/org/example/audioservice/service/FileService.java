@@ -50,7 +50,7 @@ public class FileService {
             throw new PhraseNotFoundException(String.format("Phrase with id %d not found", phraseId));
         }
 
-        String audioFileExt = FileUtils.validateAudioFile(file);
+        String audioFileExt = FileUtils.validateAudioFile(file).toLowerCase();
 
         Path filePath = null;
 
@@ -103,6 +103,8 @@ public class FileService {
 
     public FileDownloadDTO getAudioFile(Long userId, Long phraseId, String format) {
         Log.info("get_audio_file|start|userId={}, phraseId={}, format={}", userId, phraseId, format);
+
+        format = format.toLowerCase();
 
         // file format validation
         if (FileUtils.getMimeTypeFromExtension(format.toLowerCase()) == null) {
