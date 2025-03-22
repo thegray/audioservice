@@ -133,9 +133,10 @@ Should get response `{"status": "up"}`
 
 ##### 5. Example API Calls  
 
-Upload Audio File:
+Upload Audio File:  
 `curl -F "file=@/path/to/audiofile.mp3" http://localhost:8080/v1/audio/upload?userId=123&phraseId=456`  
-Need to specify path to your valid audio file.
-Download Audio File:
+Need to specify path to your valid audio file.  
+
+Download Audio File:  
 `curl -X GET http://localhost:8080/v1/audio/download?userId=123&phraseId=456&format=mp3 -o downloaded.mp3`
 
